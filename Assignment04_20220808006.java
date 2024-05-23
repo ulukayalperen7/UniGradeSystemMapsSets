@@ -1,5 +1,5 @@
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Stream;
 
 public class Assignment04_20220808006 {
 
@@ -285,61 +285,52 @@ class Teacher extends Person {
 
 class Student extends Person {
 
-    private List<Course> coursesTaken = new ArrayList<>(); // taken lessons
-    private List<Double> gradesTaken = new ArrayList<>(); // taken grades
+    /*
+     * private List<Course> coursesTaken = new ArrayList<>(); // taken lessons
+     * private List<Double> gradesTaken = new ArrayList<>(); //
+     */// taken grades
+    private Map<Course, Map<Semester, Double>> coursesMap; // courses and semseter + grades
 
     public Student(String name, String email, long ID, Department department) {
         super(name, email, ID, department);
+        this.coursesMap = new HashMap<>();
     }
 
-    public int getAKTS() {
-        int passedAKTS = 0;
-        for (int i = 0; i < coursesTaken.size(); i++) {
-            if (gradesTaken.get(i) > 60) {
-                passedAKTS += (coursesTaken.get(i)).getAKTS();
-            }
+    public int getAKTS() { // only courses
+        Set<Course> courseSet = new HashSet<>(coursesMap.keySet());
+        int akts = 0;
+        for (Course course : courseSet) {
+            akts += course.getAKTS();
         }
-        return passedAKTS;
+        return akts;
     }
 
     public int getAttemptedAKTS() {
-        int totalAKTS = 0;
-        for (int i = 0; i < gradesTaken.size(); i++) {
-            totalAKTS += (coursesTaken.get(i)).getAKTS();
-        }
-        return totalAKTS;
+        return getAKTS();
     }
 
-    public void addCourse(Course course, double grade) {
-
+    public void addCourse(Course course, Semester semester, double grade) {
         if (grade < 0.0 || grade > 100.0) {
             throw new InvalidGradeException(grade);
         } else {
-            int index = -1; // for invalids
-            for (int i = 0; i < coursesTaken.size(); i++) {
-                if (coursesTaken.get(i) == course) {
-                    index = i;
-                }
-            }
-            if (index == -1) {
-                coursesTaken.add(course);
-                gradesTaken.add(grade);
-            } else {
-                gradesTaken.set(index, grade);
-            }
+            coursesMap.putIfAbsent(course, new HashMap<>());
+            coursesMap.get(course).put(semester, grade);
         }
-
     }
 
-    public double getGPA() {
-        double sum = 0;
-        for (int i = 0; i < coursesTaken.size(); i++) {
-            sum += (coursesTaken.get(i).getAKTS()) * gpaPoints(gradesTaken.get(i));
+    public double courseGPAPoints(Course course) {
+        Map<Semester, Double> gradeMap = coursesMap.getOrDefault(course, null);
+        double highestGrade = 0;
+        for (Double grade : gradeMap.values()) {
+            if (grade > highestGrade) {
+                highestGrade = grade;
+            }
         }
-        return sum / getAttemptedAKTS();
+        double gpa = togpaPoints(highestGrade);
+        return gpa;
     }
 
-    public static double gpaPoints(double grade) {
+    private static double togpaPoints(double grade) {
         if (grade >= 88.0) {
             return 4.0;
         } else if (grade >= 81.0) {
@@ -361,56 +352,34 @@ class Student extends Person {
         }
     }
 
-    public double courseGPAPoints(Course course) {
-
-        int indexOfCourse = coursesTaken.indexOf(course);
-        if (indexOfCourse == -1) {
-            throw new CourseNotFoundException(this, course);
+    public String courseGradeLetter(Course course) {
+        Map<Semester, Double> gradeMap = coursesMap.getOrDefault(course, new HashMap<>());
+        double highestGrade = 0;
+        for (Double grade : gradeMap.values()) {
+            if (grade > highestGrade) {
+                highestGrade = grade;
+            }
         }
-        double grade = gradesTaken.get(indexOfCourse);
-
-        if (grade >= 88 && grade <= 100) {
-            return 4.0;
-        } else if (grade >= 81) {
-            return 3.5;
-        } else if (grade >= 74) {
-            return 3.0;
-        } else if (grade >= 67) {
-            return 2.5;
-        } else if (grade >= 60) {
-            return 2.0;
-        } else if (grade >= 53) {
-            return 1.5;
-        } else if (grade >= 46) {
-            return 1.0;
-        } else if (grade >= 35) {
-            return 0.5;
-        } else {
-            return 0.0;
-        }
+        String strLetter = togradeLetter(highestGrade);
+        return strLetter;
     }
 
-    public String courseGradeLetter(Course course) {
-        int indexOfCourse = coursesTaken.indexOf(course);
-        if (indexOfCourse == -1) {
-            throw new CourseNotFoundException(this, course);
-        }
-        double grade = gradesTaken.get(indexOfCourse);
-        if (grade >= 88 && grade <= 100) {
+    private static String togradeLetter(double grade) {
+        if (grade >= 88.0) {
             return "AA";
-        } else if (grade >= 81) {
+        } else if (grade >= 81.0) {
             return "BA";
-        } else if (grade >= 74) {
+        } else if (grade >= 74.0) {
             return "BB";
-        } else if (grade >= 67) {
+        } else if (grade >= 67.0) {
             return "CB";
-        } else if (grade >= 60) {
+        } else if (grade >= 60.0) {
             return "CC";
-        } else if (grade >= 53) {
+        } else if (grade >= 53.0) {
             return "DC";
-        } else if (grade >= 46) {
+        } else if (grade >= 46.0) {
             return "DD";
-        } else if (grade >= 35) {
+        } else if (grade >= 35.0) {
             return "FD";
         } else {
             return "FF";
@@ -418,83 +387,43 @@ class Student extends Person {
     }
 
     public String courseResult(Course course) {
-        int indexOfCourse = coursesTaken.indexOf(course);
-        if (indexOfCourse == -1) {
-            throw new CourseNotFoundException(this, course);
+        Map<Semester, Double> gradeMap = coursesMap.getOrDefault(course, new HashMap<>());
+        double highestGrade = 0;
+        for (Double grade : gradeMap.values()) {
+            if (grade > highestGrade) {
+                highestGrade = grade;
+            }
         }
-        double grade = gradesTaken.get(indexOfCourse);
-        if (grade >= 88 && grade <= 100) {
-            return "passed";
-        } else if (grade >= 81) {
-            return "passed";
-        } else if (grade >= 74) {
-            return "passed";
-        } else if (grade >= 67) {
-            return "passed";
-        } else if (grade >= 60) {
-            return "passed";
-        } else if (grade >= 53) {
+        String strLetter = toresult(highestGrade);
+        return String.format("%s: %s", course.getTitle(), strLetter);
+    }
+
+    private static String toresult(double grade) {
+        if (grade >= 60) {
+            return "Passed";
+        } else if (grade >= 53.0) {
             return "Conditionally Passed";
-        } else if (grade >= 46) {
+        } else if (grade >= 46.0) {
             return "Conditionally Passed";
-        } else if (grade >= 35) {
-            return "failed";
+        } else if (grade >= 35.0) {
+            return "Failed";
         } else {
-            return "failed";
+            return "Failed";
         }
     }
 
-    public void setCoursesTaken(List<Course> coursesTaken) {
-        this.coursesTaken = coursesTaken;
-    }
-
-    public List<Course> getCoursesTaken() {
-        return coursesTaken;
-    }
-
-    public void setGradesTaken(List<Double> gradesTaken) {
-        this.gradesTaken = gradesTaken;
-    }
-
-    public List<Double> getGradesTaken() {
-        return gradesTaken;
-    }
-
-    @Override
-    public String toString() {
-
-        return super.toString() + " -GPA: " + getGPA();
-    }
 }
 
 class GradStudent extends Student {
 
     private int rank;
     private String thesisTopic;
-    private List<Course> coursesTaken = new ArrayList<>(); // taken lessons
-    private List<Double> gradesTaken = new ArrayList<>(); // taken grades
 
     public GradStudent(String name, String email,
             long ID, Department department, int rank, String thesisTopic) {
         super(name, email, ID, department);
         setRank(rank);
         setThesisTopic(thesisTopic);
-    }
-
-    public void setCoursesTaken(List<Course> coursesTaken) {
-        super.setCoursesTaken(coursesTaken);
-    }
-
-    public List<Course> getCoursesTaken() {
-        return super.getCoursesTaken();
-    }
-
-    public void setGradesTaken(List<Double> gradesTaken) {
-        super.setGradesTaken(gradesTaken);
-    }
-
-    public List<Double> getGradesTaken() {
-        return super.getGradesTaken();
     }
 
     public void setRank(int rank) {
@@ -515,87 +444,6 @@ class GradStudent extends Student {
 
     public String getThesisTopic() {
         return thesisTopic;
-    }
-
-    @Override
-    public double courseGPAPoints(Course course) {
-
-        int indexOfCourse = coursesTaken.indexOf(course);
-        if (indexOfCourse == -1) {
-            throw new CourseNotFoundException(this, course);
-        }
-        double grade = gradesTaken.get(indexOfCourse);
-
-        if (grade >= 90 && grade <= 100) {
-            return 4.0;
-        } else if (grade >= 85) {
-            return 3.5;
-        } else if (grade >= 80) {
-            return 3.0;
-        } else if (grade >= 75) {
-            return 2.5;
-        } else if (grade >= 70) {
-            return 2.0;
-        } else {
-            return 0.0;
-        }
-    }
-
-    @Override
-    public String courseGradeLetter(Course course) {
-
-        int indexOfCourse = coursesTaken.indexOf(course);
-        if (indexOfCourse == -1) {
-            throw new CourseNotFoundException(this, course);
-        }
-        double grade = gradesTaken.get(indexOfCourse);
-
-        if (grade >= 90 && grade <= 100) {
-            return "AA";
-        } else if (grade >= 85) {
-            return "BA";
-        } else if (grade >= 80) {
-            return "BB";
-        } else if (grade >= 75) {
-            return "CB";
-        } else if (grade >= 70) {
-            return "CC";
-        } else {
-            return "FF";
-        }
-    }
-
-    @Override
-    public String courseResult(Course course) {
-
-        int indexOfCourse = coursesTaken.indexOf(course);
-        if (indexOfCourse == -1) {
-            throw new CourseNotFoundException(this, course);
-        }
-        double grade = gradesTaken.get(indexOfCourse);
-
-        if (grade >= 90 && grade <= 100) {
-            return "passed";
-        } else if (grade >= 85) {
-            return "passed";
-        } else if (grade >= 80) {
-            return "passed";
-        } else if (grade >= 75) {
-            return "passed";
-        } else if (grade >= 70) {
-            return "passed";
-        } else {
-            return "failed";
-        }
-    }
-
-    @Override
-    public double getGPA() {
-        double sum = 0;
-        for (int i = 0; i < getCoursesTaken().size(); i++) {
-            sum += (getCoursesTaken().get(i).getAKTS()) * gpaPoints(getGradesTaken().get(i));
-        }
-        return sum / getAttemptedAKTS();
     }
 
     public static double gpaPoints(double grade) {
