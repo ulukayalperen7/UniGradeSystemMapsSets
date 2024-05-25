@@ -1,5 +1,9 @@
+
+/** 
+ * @author Alperen Ulukaya
+ * @since 24.05.2024
+ */
 import java.util.*;
-import java.util.stream.Stream;
 
 public class Assignment04_20220808006 {
 
@@ -43,7 +47,7 @@ class Department {
 
     public void setChair(Teacher chair) {
 
-        if (chair == null || hashCode() == chair.getDepartment().hashCode()) {
+        if (chair == null || this.equals(chair.getDepartment())) {
             this.chair = chair;
         } else {
             throw new DepartmentMismatchException(this, chair);
@@ -62,17 +66,17 @@ class Course {
     private int courseNumber;
 
     public Course(Department department, int courseNumber, String title, String description, int AKTS,
-            Teacher teacher) {
+            Teacher teacher) throws DepartmentMismatchException {
 
-        if (teacher.getDepartment().equals(department)) {
+        if (!teacher.getDepartment().equals(department)) {
+            throw new DepartmentMismatchException(department, teacher);
+        } else {
             this.department = department;
             setCourseNumber(courseNumber);
             this.title = title;
             this.description = description;
             setAKTS(AKTS);
             setTeacher(teacher);
-        } else {
-            throw new DepartmentMismatchException(department, teacher);
         }
 
     }
@@ -143,7 +147,7 @@ class Course {
     }
 
     public String courseCode() {
-        return getDepartment() + "" + getCourseNumber();
+        return getDepartment().getCode() + "" + getCourseNumber();
     }
 
     @Override
@@ -318,8 +322,20 @@ class Student extends Person {
         }
     }
 
+    public String listGrades(Semester semester) {
+        return "Semester grades: ";
+    }
+
+    public String listGrades(Course course) {
+        return "Course grades: ";
+    }
+
+    public String transcript() {
+        return "transcript";
+    }
+
     public double courseGPAPoints(Course course) {
-        Map<Semester, Double> gradeMap = coursesMap.getOrDefault(course, null);
+        Map<Semester, Double> gradeMap = coursesMap.getOrDefault(course, new HashMap<>());
         double highestGrade = 0;
         for (Double grade : gradeMap.values()) {
             if (grade > highestGrade) {
@@ -412,12 +428,17 @@ class Student extends Person {
         }
     }
 
+    public Map<Course, Map<Semester, Double>> getCoursesMap() {
+        return coursesMap;
+    }
+
 }
 
 class GradStudent extends Student {
 
     private int rank;
     private String thesisTopic;
+    private Course teachingAssistantCourse;
 
     public GradStudent(String name, String email,
             long ID, Department department, int rank, String thesisTopic) {
@@ -446,26 +467,70 @@ class GradStudent extends Student {
         return thesisTopic;
     }
 
-    public static double gpaPoints(double grade) {
-        if (grade >= 88.0) {
+    private static String toresult(double grade) {
+
+        if (grade >= 70) {
+            return "Passed";
+        } else {
+            return "Failed";
+        }
+    }
+
+    private static String togradeLetter(double grade) {
+
+        if (grade >= 90.0) {
+            return "AA";
+        } else if (grade >= 85.0) {
+            return "BA";
+        } else if (grade >= 80.0) {
+            return "BB";
+        } else if (grade >= 75.0) {
+            return "CB";
+        } else if (grade >= 70.0) {
+            return "CC";
+        } else {
+            return "FF";
+        }
+    }
+
+    private static double togpaPoints(double grade) {
+
+        if (grade >= 90.0) {
             return 4.0;
-        } else if (grade >= 81.0) {
+        } else if (grade >= 85.0) {
             return 3.5;
-        } else if (grade >= 74.0) {
+        } else if (grade >= 80.0) {
             return 3.0;
-        } else if (grade >= 67.0) {
+        } else if (grade >= 75.0) {
             return 2.5;
-        } else if (grade >= 60.0) {
+        } else if (grade >= 70.0) {
             return 2.0;
-        } else if (grade >= 53.0) {
-            return 1.5;
-        } else if (grade >= 46.0) {
-            return 1.0;
-        } else if (grade >= 35.0) {
-            return 0.5;
         } else {
             return 0.0;
         }
+    }
+
+    @Override
+    public double courseGPAPoints(Course course) {
+
+        double highestGpa = calculateHighest(course);
+        return togpaPoints(highestGpa);
+
+    }
+
+    @Override
+    public String courseGradeLetter(Course course) {
+
+        double highestLetter = calculateHighest(course);
+        return togradeLetter(highestLetter);
+    }
+
+    @Override
+    public String courseResult(Course course) {
+
+        double result = calculateHighest(course);
+        String str = course.getTitle() + " " + togradeLetter(result);
+        return str;
     }
 
     public String getLevel() {
@@ -481,6 +546,39 @@ class GradStudent extends Student {
                 throw new InvalidValueAttemptedException(rank, "1, 2 or 3");
 
         }
+    }
+
+    public Course getTeachingAssistantCourse() {
+        return teachingAssistantCourse;
+    }
+
+    public void setTeachingAssistantCourse(Course course) {
+
+        if (this.teachingAssistantCourse != null) {
+            throw new CourseNotFoundException(this, teachingAssistantCourse);
+        }
+
+        double highestScore = calculateHighest(teachingAssistantCourse);
+        if (highestScore >= 80) {
+            teachingAssistantCourse = course;
+        } else {
+            throw new CourseNotFoundException(this, course);
+        }
+    }
+
+    private double calculateHighest(Course course) {
+        Map<Semester, Double> grades = super.getCoursesMap().get(course);
+
+        if (grades.isEmpty() || grades == null) {
+            throw new CourseNotFoundException(this, course);
+        }
+        double highest = 0;
+        for (Double bigger : grades.values()) {
+            if (bigger > highest) {
+                highest = bigger;
+            }
+        }
+        return highest;
     }
 
 }
@@ -624,6 +722,7 @@ class InvalidValueAttemptedException extends RuntimeException {
     private String message;
 
     public InvalidValueAttemptedException(Object invalid, String message) {
+        super("Invalid value: " + invalid + ". Expected: " + message);
         this.invalid = invalid;
         this.message = message;
     }
